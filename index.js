@@ -29,25 +29,27 @@ exports.convert = (document, format, filter, callback) => {
 
             return async.filter(
                 paths,
-                (filePath, callback) => fs.access(filePath, err => callback(null, !err)),
+                (filePath, callback) => {
+                    fs.access(filePath, err => callback(null, !err))
+                },
                 (err, res) => {
                     if (res.length === 0) {
                         return callback(new Error('Could not find soffice binary'));
                     }
-
                     return callback(null, process.platform === 'win32' ? `"${res[0]}"` : res[0]);
                 }
             );
         },
         saveSource: callback => fs.writeFile(path.join(tempDir.name, 'source'), document, callback),
         convert: ['soffice', 'saveSource', (results, callback) => {
-            let command = `${results.soffice} -env:UserInstallation=file://${installDir.name} --headless --convert-to ${format}`;
+            const libre = results.soffice;
+            let command = `--headless --convert-to ${format}`;
             if (filter !== undefined) {
                 command += `:"${filter}"`;
             }
             command += ` --outdir ${tempDir.name} ${path.join(tempDir.name, 'source')}`;
             command = command.split(' ');
-            return execFile(command[0], command.slice(1), callback);
+            return execFile(libre, command, {shell: process.platform == 'win32'}, callback);
         }],
         loadDestination: ['convert', (results, callback) =>
             async.retry({
